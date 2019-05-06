@@ -8,7 +8,6 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.location.Location
-import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -26,17 +25,12 @@ import org.greenstand.android.TreeTracker.R
 import org.greenstand.android.TreeTracker.activities.CameraActivity
 import org.greenstand.android.TreeTracker.activities.MainActivity
 import org.greenstand.android.TreeTracker.application.Permissions
-import org.greenstand.android.TreeTracker.application.TreeTrackerApplication
 import org.greenstand.android.TreeTracker.data.NewTree
-import org.greenstand.android.TreeTracker.database.entity.*
 import org.greenstand.android.TreeTracker.managers.FeatureFlags
 import org.greenstand.android.TreeTracker.managers.TreeManager
 import org.greenstand.android.TreeTracker.utilities.ImageUtils
-import org.greenstand.android.TreeTracker.utilities.Utils
-import org.greenstand.android.TreeTracker.utilities.Utils.Companion.dateFormat
 import org.greenstand.android.TreeTracker.utilities.ValueHelper
 import timber.log.Timber
-import java.util.*
 
 class NewTreeFragment : androidx.fragment.app.Fragment(), OnClickListener, ActivityCompat.OnRequestPermissionsResultCallback {
     private var mImageView: ImageView? = null
@@ -94,8 +88,8 @@ class NewTreeFragment : androidx.fragment.app.Fragment(), OnClickListener, Activ
         newTreeDistance.text = newTreeDistanceString
 
         val newTreeGpsAccuracy = v.fragmentNewTreeGpsAccuracy
-        if (MainActivity.mCurrentLocation != null) {
-            val newTreeGpsAccuracyString1 = Integer.toString(Math.round(MainActivity.mCurrentLocation!!.accuracy)) +
+        if (MainActivity.currentLocation != null) {
+            val newTreeGpsAccuracyString1 = Integer.toString(Math.round(MainActivity.currentLocation!!.accuracy)) +
                     " " + resources.getString(R.string.meters)
             newTreeGpsAccuracy.text = newTreeGpsAccuracyString1
         } else {
@@ -140,7 +134,7 @@ class NewTreeFragment : androidx.fragment.app.Fragment(), OnClickListener, Activ
     override fun onStart() {
         super.onStart()
 
-        if (MainActivity.mCurrentLocation == null) {
+        if (MainActivity.currentLocation == null) {
             Toast.makeText(activity, "Insufficient GPS accuracy", Toast.LENGTH_SHORT).show()
             activity!!.supportFragmentManager.popBackStack()
         } else if (!takePictureInvoked) {
@@ -222,10 +216,10 @@ class NewTreeFragment : androidx.fragment.app.Fragment(), OnClickListener, Activ
 
                 if (mCurrentPhotoPath != null) {
 
-                    MainActivity.mCurrentTreeLocation = Location("") // Just a blank location
-                    if (MainActivity.mCurrentLocation != null) {
-                        MainActivity.mCurrentTreeLocation!!.latitude = MainActivity.mCurrentLocation!!.latitude
-                        MainActivity.mCurrentTreeLocation!!.longitude = MainActivity.mCurrentLocation!!.longitude
+                    MainActivity.currentTreeLocation = Location("") // Just a blank location
+                    if (MainActivity.currentLocation != null) {
+                        MainActivity.currentTreeLocation!!.latitude = MainActivity.currentLocation!!.latitude
+                        MainActivity.currentTreeLocation!!.longitude = MainActivity.currentLocation!!.longitude
                     }
 
                     setPic()

@@ -150,9 +150,9 @@ class NoteFragment : Fragment(), OnClickListener, OnCheckedChangeListener,
             val lat = it.latitude
             val lon = it.longitude
 
-            MainActivity.mCurrentTreeLocation = Location("") // Empty location
-            MainActivity.mCurrentTreeLocation!!.latitude = lat
-            MainActivity.mCurrentTreeLocation!!.longitude = lon
+            MainActivity.currentTreeLocation = Location("") // Empty location
+            MainActivity.currentTreeLocation!!.latitude = lat
+            MainActivity.currentTreeLocation!!.longitude = lon
         }
 
         return v
@@ -294,9 +294,9 @@ class NoteFragment : Fragment(), OnClickListener, OnCheckedChangeListener,
 
         // location
         val location = LocationEntity(
-            MainActivity.mCurrentLocation!!.accuracy.toInt(),
-            MainActivity.mCurrentLocation!!.latitude,
-            MainActivity.mCurrentLocation!!.longitude,
+            MainActivity.currentLocation!!.accuracy.toInt(),
+            MainActivity.currentLocation!!.latitude,
+            MainActivity.currentLocation!!.longitude,
             userId
         )
 

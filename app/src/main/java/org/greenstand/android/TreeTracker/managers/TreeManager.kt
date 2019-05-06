@@ -96,9 +96,9 @@ object TreeManager {
 
     fun insertLocation(userId: Long): Long {
         val locationEntity = LocationEntity(
-            MainActivity.mCurrentLocation!!.accuracy.toInt(),
-            MainActivity.mCurrentLocation!!.latitude,
-            MainActivity.mCurrentLocation!!.longitude,
+            MainActivity.currentLocation!!.accuracy.toInt(),
+            MainActivity.currentLocation!!.latitude,
+            MainActivity.currentLocation!!.longitude,
             userId
         )
 

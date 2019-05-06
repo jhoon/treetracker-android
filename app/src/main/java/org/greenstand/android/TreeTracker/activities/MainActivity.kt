@@ -10,17 +10,14 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.location.Location
-import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentTransaction
 import kotlinx.android.synthetic.main.activity_main.*
@@ -28,9 +25,13 @@ import kotlinx.android.synthetic.main.fragment_map.*
 import kotlinx.android.synthetic.main.fragment_new_tree.*
 import kotlinx.android.synthetic.main.fragment_tree_preview.*
 import org.greenstand.android.TreeTracker.R
-import org.greenstand.android.TreeTracker.api.models.responses.UserTree
 import org.greenstand.android.TreeTracker.application.Permissions
-import org.greenstand.android.TreeTracker.fragments.*
+import org.greenstand.android.TreeTracker.fragments.AboutFragment
+import org.greenstand.android.TreeTracker.fragments.DataFragment
+import org.greenstand.android.TreeTracker.fragments.LoginFragment
+import org.greenstand.android.TreeTracker.fragments.MapsFragment
+import org.greenstand.android.TreeTracker.managers.PermissionsManager
+import org.greenstand.android.TreeTracker.utilities.GpsHelper
 import org.greenstand.android.TreeTracker.utilities.ValueHelper
 import timber.log.Timber
 
@@ -43,9 +44,7 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
 
     private var fragmentTransaction: FragmentTransaction? = null
 
-    private var locationManager: LocationManager? = null
-    private var mLocationListener: android.location.LocationListener? = null
-    private var mLocationUpdatesStarted: Boolean = false
+    private var locationListener: android.location.LocationListener? = null
 
     /**
      * Called when the activity is first created.
@@ -101,12 +100,8 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
         }
 
         val userIdentifier = mSharedPreferences?.getString(ValueHelper.PLANTER_IDENTIFIER, null)
-        if(  userIdentifier == null){
-            val editor = mSharedPreferences?.edit()
-            editor?.putLong(ValueHelper.TIME_OF_LAST_USER_IDENTIFICATION, 0)
-            editor?.putString(ValueHelper.PLANTER_IDENTIFIER, null)
-            editor?.putString(ValueHelper.PLANTER_PHOTO, null)
-            editor?.apply()
+        if (userIdentifier == null) {
+            updatePreferences()
 
             toolbarTitle.text = resources.getString(R.string.user_not_identified)
 
@@ -116,7 +111,7 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
             fragmentTransaction?.replace(R.id.containerFragment, fragment as LoginFragment)
                 ?.addToBackStack(ValueHelper.IDENTIFY_FRAGMENT)?.commit()
 
-        }else if (mSharedPreferences!!.getBoolean(ValueHelper.TREES_TO_BE_DOWNLOADED_FIRST, false)) {
+        } else if (mSharedPreferences!!.getBoolean(ValueHelper.TREES_TO_BE_DOWNLOADED_FIRST, false)) {
             Timber.d("TREES_TO_BE_DOWNLOADED_FIRST is true")
             var bundle = intent.extras
 
@@ -152,15 +147,10 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
                         .beginTransaction()
                 fragmentTransaction.replace(R.id.containerFragment, homeFragment).addToBackStack(ValueHelper.MAP_FRAGMENT)
                 fragmentTransaction.commit()
-            }else {
-                val editor = mSharedPreferences?.edit()
-                editor?.putLong(ValueHelper.TIME_OF_LAST_USER_IDENTIFICATION, 0)
-                editor?.putString(ValueHelper.PLANTER_IDENTIFIER, null)
-                editor?.putString(ValueHelper.PLANTER_PHOTO, null)
-                editor?.commit()
+            } else {
+                updatePreferences()
 
                 toolbarTitle.text = resources.getString(R.string.user_not_identified)
-
 
                 fragment = LoginFragment()
                 fragmentTransaction = supportFragmentManager
@@ -200,20 +190,6 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
                 }
                 return true
             }
-        /*
-            case R.id.action_settings:
-                fragment = new SettingsFragment();
-                bundle = getIntent().getExtras();
-                fragment.setArguments(bundle);
-
-                fragmentTransaction = getSupportFragmentManager().beginTransaction();
-                fragmentTransaction.replace(R.id.container_fragment, fragment)
-                .addToBackStack(ValueHelper.SETTINGS_FRAGMENT).commit();
-                for(int entry = 0; entry < fm.getBackStackEntryCount(); entry++){
-                    Timber.d("MainActivity", "Found fragment: " + fm.getBackStackEntryAt(entry).getName());
-                }
-                return true;
-                */
             R.id.action_about -> {
                 val someFragment = supportFragmentManager.findFragmentById(R.id.containerFragment)
 
@@ -241,14 +217,9 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
             }
 
             R.id.action_change_user -> {
-                val editor = mSharedPreferences?.edit()
-                editor?.putLong(ValueHelper.TIME_OF_LAST_USER_IDENTIFICATION, 0)
-                editor?.putString(ValueHelper.PLANTER_IDENTIFIER, null)
-                editor?.putString(ValueHelper.PLANTER_PHOTO, null)
-                editor?.commit()
+                updatePreferences()
 
                 toolbarTitle.text = resources.getString(R.string.user_not_identified)
-
 
                 fragment = LoginFragment()
                 fragmentTransaction = supportFragmentManager
@@ -266,7 +237,6 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
      * Parts of the UI may be visible, but the Activity is inactive.
      */
     public override fun onPause() {
-        Timber.d("onPause")
         super.onPause()
 
         stopPeriodicUpdates()
@@ -276,81 +246,63 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
      * Called when the system detects that this Activity is now visible.
      */
     public override fun onResume() {
-        Timber.d("onResume")
         super.onResume()
 
-        if(necessaryPermissionsGranted()) {
-            requestNecessaryPermissions()
-        } else {
+        if (!PermissionsManager.requestNeededPermissions(this)) {
             startPeriodicUpdates()
         }
     }
-
-    private fun necessaryPermissionsGranted() : Boolean {
-        return ContextCompat.checkSelfPermission(this,
-            android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                || ContextCompat.checkSelfPermission(this,
-            android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun requestNecessaryPermissions(){
-        ActivityCompat.requestPermissions(this, arrayOf(
-                android.Manifest.permission.ACCESS_COARSE_LOCATION,
-                android.Manifest.permission.ACCESS_FINE_LOCATION),
-                Permissions.NECESSARY_PERMISSIONS)
-    }
-
 
     fun onLocationChanged(location: Location) {
         //Timber.d("onLocationChanged", location.toString());
 
         // In the UI, set the latitude and longitude to the value received
-        mCurrentLocation = location
+        currentLocation = location
 
         //int minAccuracy = mSharedPreferences.getInt(ValueHelper.MIN_ACCURACY_GLOBAL_SETTING, 0);
         val minAccuracy = 10
 
 
         if (fragmentMapGpsAccuracy != null) {
-            if (mCurrentLocation != null) {
-                if (mCurrentLocation!!.hasAccuracy() && mCurrentLocation!!.accuracy < minAccuracy) {
+            if (currentLocation != null) {
+                if (currentLocation!!.hasAccuracy() && currentLocation!!.accuracy < minAccuracy) {
                     fragmentMapGpsAccuracy.setTextColor(Color.GREEN)
                     fragmentMapGpsAccuracyValue?.setTextColor(Color.GREEN)
                     fragmentMapGpsAccuracyValue?.text = Integer.toString(
-                        Math.round(mCurrentLocation!!.accuracy)) + " " + resources.getString(R.string.meters)
-                    MainActivity.mAllowNewTreeOrUpdate = true
+                        Math.round(currentLocation!!.accuracy)) + " " + resources.getString(R.string.meters)
+                    MainActivity.allowNewTreeOrUpdate = true
                 } else {
                     fragmentMapGpsAccuracy.setTextColor(Color.RED)
-                    MainActivity.mAllowNewTreeOrUpdate = false
+                    MainActivity.allowNewTreeOrUpdate = false
 
-                    if (mCurrentLocation!!.hasAccuracy()) {
+                    if (currentLocation!!.hasAccuracy()) {
                         fragmentMapGpsAccuracyValue?.setTextColor(Color.RED)
                         fragmentMapGpsAccuracyValue?.text = Integer.toString(
-                            Math.round(mCurrentLocation!!.accuracy)) + " " + resources.getString(R.string.meters)
+                            Math.round(currentLocation!!.accuracy)) + " " + resources.getString(R.string.meters)
                     } else {
                         fragmentMapGpsAccuracyValue?.setTextColor(Color.RED)
                         fragmentMapGpsAccuracyValue?.text = "N/A"
                     }
                 }
 
-                if (mCurrentLocation!!.hasAccuracy()) {
+                if (currentLocation!!.hasAccuracy()) {
                     if (fragmentNewTreeGpsAccuracy != null) {
                         fragmentNewTreeGpsAccuracy?.text = Integer.toString(
-                            Math.round(mCurrentLocation!!.accuracy)) + " " + resources.getString(R.string.meters)
+                            Math.round(currentLocation!!.accuracy)) + " " + resources.getString(R.string.meters)
                     }
                 }
             } else {
                 fragmentMapGpsAccuracy.setTextColor(Color.RED)
                 fragmentMapGpsAccuracyValue?.setTextColor(Color.RED)
                 fragmentMapGpsAccuracyValue?.text = "N/A"
-                MainActivity.mAllowNewTreeOrUpdate = false
+                MainActivity.allowNewTreeOrUpdate = false
             }
 
 
-            if (mCurrentTreeLocation != null && MainActivity.mCurrentLocation != null) {
+            if (currentTreeLocation != null && MainActivity.currentLocation != null) {
                 val results = floatArrayOf(0f, 0f, 0f)
-                Location.distanceBetween(MainActivity.mCurrentLocation!!.latitude, MainActivity.mCurrentLocation!!.longitude,
-                        MainActivity.mCurrentTreeLocation!!.latitude, MainActivity.mCurrentTreeLocation!!.longitude, results)
+                Location.distanceBetween(MainActivity.currentLocation!!.latitude, MainActivity.currentLocation!!.longitude,
+                        MainActivity.currentTreeLocation!!.latitude, MainActivity.currentTreeLocation!!.longitude, results)
 
                 if (fragmentNewTreeDistance != null) {
                     fragmentNewTreeDistance.text = Integer.toString(Math.round(results[0])) + " " + resources.getString(R.string.meters)
@@ -369,7 +321,7 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        if (grantResults.size > 0) {
+        if (grantResults.isNotEmpty()) {
             if (requestCode == Permissions.NECESSARY_PERMISSIONS && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startPeriodicUpdates()
             }
@@ -384,17 +336,13 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
     private fun startPeriodicUpdates() {
 
 
-        if (necessaryPermissionsGranted()) {
+        if (!PermissionsManager.requestNeededPermissions(this)) {
             Toast.makeText(this, "GPS Permissions Not Enabled", Toast.LENGTH_LONG).show()
-            requestNecessaryPermissions()
             return
         }
 
-
-        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-
         // TODO this check may not longer be necessary
-        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+        if (!GpsHelper.isGPSEnabled(this)) {
             val builder = AlertDialog.Builder(this@MainActivity)
 
             builder.setTitle(R.string.enable_location_access)
@@ -435,11 +383,11 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
             return
         }
 
-        if (mLocationUpdatesStarted) {
+        if (GpsHelper.locationUpdatesStarted) {
             return
         }
 
-        mLocationListener = object : android.location.LocationListener {
+        locationListener = object : android.location.LocationListener {
             override fun onLocationChanged(location: Location) {
                 this@MainActivity.onLocationChanged(location)
             }
@@ -452,9 +400,8 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
         }
 
         // Register the listener with Location Manager's network provider
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0f, mLocationListener)
+        GpsHelper.requestLocationUpdates(this, locationListener!!)
 
-        mLocationUpdatesStarted = true
     }
 
 
@@ -463,14 +410,17 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
      * Location Services
      */
     private fun stopPeriodicUpdates() {
-        if (locationManager != null) {
-            locationManager?.removeUpdates(mLocationListener)
-            mLocationListener = null
-        }
-        mLocationUpdatesStarted = false
-
+        GpsHelper.removeLocationUpdates(this, locationListener!!)
+        locationListener = null
     }
 
+    private fun updatePreferences() {
+        val editor = mSharedPreferences?.edit()
+        editor?.putLong(ValueHelper.TIME_OF_LAST_USER_IDENTIFICATION, 0)
+        editor?.putString(ValueHelper.PLANTER_IDENTIFIER, null)
+        editor?.putString(ValueHelper.PLANTER_PHOTO, null)
+        editor?.apply()
+    }
 
     override fun refreshMap() {
         startPeriodicUpdates()
@@ -479,10 +429,10 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
     // TODO: implementing this as a static companion object is not necessarily a good design
     companion object {
 
-        var mCurrentLocation: Location? = null
-        var mCurrentTreeLocation: Location? = null
+        var currentLocation: Location? = null
+        var currentTreeLocation: Location? = null
 
-        var mAllowNewTreeOrUpdate = false
+        var allowNewTreeOrUpdate = false
 
     }
 

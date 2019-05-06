@@ -6,7 +6,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.database.Cursor
 import android.graphics.Color
 import android.os.Bundle
 import android.view.*
@@ -209,28 +208,28 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
         )
 
         if (fragmentMapGpsAccuracy != null) {
-            if (MainActivity.mCurrentLocation != null) {
-                if (MainActivity.mCurrentLocation!!.hasAccuracy() && MainActivity.mCurrentLocation!!.accuracy < minAccuracy) {
+            if (MainActivity.currentLocation != null) {
+                if (MainActivity.currentLocation!!.hasAccuracy() && MainActivity.currentLocation!!.accuracy < minAccuracy) {
                     fragmentMapGpsAccuracy.setTextColor(Color.GREEN)
                     fragmentMapGpsAccuracyValue.setTextColor(Color.GREEN)
                     val fragmentMapGpsAccuracyValueString1 = Integer.toString(
                         Math.round(
                             MainActivity
-                                .mCurrentLocation!!.accuracy
+                                .currentLocation!!.accuracy
                         )
                     ) + " " + resources.getString(R.string.meters)
                     fragmentMapGpsAccuracyValue.text = fragmentMapGpsAccuracyValueString1
-                    MainActivity.mAllowNewTreeOrUpdate = true
+                    MainActivity.allowNewTreeOrUpdate = true
                 } else {
                     fragmentMapGpsAccuracy.setTextColor(Color.RED)
-                    MainActivity.mAllowNewTreeOrUpdate = false
+                    MainActivity.allowNewTreeOrUpdate = false
 
-                    if (MainActivity.mCurrentLocation!!.hasAccuracy()) {
+                    if (MainActivity.currentLocation!!.hasAccuracy()) {
                         fragmentMapGpsAccuracyValue.setTextColor(Color.RED)
                         val fragmentMapGpsAccuracyValueString2 = Integer.toString(
                             Math.round(
                                 MainActivity
-                                    .mCurrentLocation!!.accuracy
+                                    .currentLocation!!.accuracy
                             )
                         ) + " " + resources.getString(R.string.meters)
                         fragmentMapGpsAccuracyValue.text = fragmentMapGpsAccuracyValueString2
@@ -254,7 +253,7 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
                 fragmentMapGpsAccuracy.setTextColor(Color.RED)
                 fragmentMapGpsAccuracyValue.setTextColor(Color.RED)
                 fragmentMapGpsAccuracyValue.text = "N/A"
-                MainActivity.mAllowNewTreeOrUpdate = false
+                MainActivity.allowNewTreeOrUpdate = false
             }
 
         }
@@ -276,7 +275,7 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
             R.id.addTreeButton -> {
                 Timber.d("fab click")
 
-                if (MainActivity.mAllowNewTreeOrUpdate || !FeatureFlags.HIGH_GPS_ACCURACY) {
+                if (MainActivity.allowNewTreeOrUpdate || !FeatureFlags.HIGH_GPS_ACCURACY) {
 
                     val currentTimestamp = System.currentTimeMillis() / 1000
                     val lastTimeStamp = mSharedPreferences!!.getLong(ValueHelper.TIME_OF_LAST_USER_IDENTIFICATION, 0)
@@ -305,7 +304,7 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
             }
         }//			case R.id.fragment_map_update_tree:
         //
-        //				if (MainActivity.mAllowNewTreeOrUpdate) {
+        //				if (MainActivity.allowNewTreeOrUpdate) {
         //					SQLiteDatabase db = MainActivity.dbHelper.getReadableDatabase();
         //
         ////					String query = "select * from tree_photo " +
@@ -360,9 +359,9 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
             for (i in 0..499) {
 
                 val location = LocationEntity(
-                    MainActivity.mCurrentLocation!!.accuracy.toInt(),
-                    MainActivity.mCurrentLocation!!.latitude + (Math.random() - .5) / 1000,
-                    MainActivity.mCurrentLocation!!.longitude + (Math.random() - .5) / 1000,
+                    MainActivity.currentLocation!!.accuracy.toInt(),
+                    MainActivity.currentLocation!!.latitude + (Math.random() - .5) / 1000,
+                    MainActivity.currentLocation!!.longitude + (Math.random() - .5) / 1000,
                     userId.toLong()
                 )
 
@@ -481,9 +480,9 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
                 map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 20f))
 
             } else {
-                if (MainActivity.mCurrentLocation != null) {
+                if (MainActivity.currentLocation != null) {
                     val myLatLng =
-                        LatLng(MainActivity.mCurrentLocation!!.latitude, MainActivity.mCurrentLocation!!.longitude)
+                        LatLng(MainActivity.currentLocation!!.latitude, MainActivity.currentLocation!!.longitude)
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(myLatLng, 10f))
                 }
             }
