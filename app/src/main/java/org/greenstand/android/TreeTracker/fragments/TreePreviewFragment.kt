@@ -19,8 +19,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.greenstand.android.TreeTracker.R
-import org.greenstand.android.TreeTracker.activities.MainActivity
 import org.greenstand.android.TreeTracker.application.TreeTrackerApplication
+import org.greenstand.android.TreeTracker.managers.UserLocationManager
 import org.greenstand.android.TreeTracker.utilities.Utils
 import org.greenstand.android.TreeTracker.utilities.ValueHelper
 import timber.log.Timber
@@ -91,20 +91,20 @@ class TreePreviewFragment : Fragment(), OnClickListener {
                     noImage.visibility = View.VISIBLE
                 }
 
-                MainActivity.currentTreeLocation = Location("")
-                MainActivity.currentTreeLocation!!.latitude = it.latitude
-                MainActivity.currentTreeLocation!!.longitude = it.longitude
+                UserLocationManager.currentTreeLocation = Location("")
+                UserLocationManager.currentTreeLocation!!.latitude = it.latitude
+                UserLocationManager.currentTreeLocation!!.longitude = it.longitude
 
                 // No GPS accuracy info from new api.
-                //			MainActivity.currentTreeLocation.setAccuracy(Float.parseFloat(photoCursor.getString(photoCursor.getColumnIndex("accuracy"))));
+                //			UserLocationManager.currentTreeLocation.setAccuracy(Float.parseFloat(photoCursor.getString(photoCursor.getColumnIndex("accuracy"))));
 
                 val results = floatArrayOf(0f, 0f, 0f)
-                if (MainActivity.currentLocation != null) {
+                if (UserLocationManager.currentLocation != null) {
                     Location.distanceBetween(
-                        MainActivity.currentLocation!!.latitude,
-                        MainActivity.currentLocation!!.longitude,
-                        MainActivity.currentTreeLocation!!.latitude,
-                        MainActivity.currentTreeLocation!!.longitude,
+                        UserLocationManager.currentLocation!!.latitude,
+                        UserLocationManager.currentLocation!!.longitude,
+                        UserLocationManager.currentTreeLocation!!.latitude,
+                        UserLocationManager.currentTreeLocation!!.longitude,
                         results
                     )
                 }

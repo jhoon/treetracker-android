@@ -2,17 +2,12 @@ package org.greenstand.android.TreeTracker.activities
 
 
 import android.annotation.SuppressLint
-import android.app.AlertDialog
 import android.app.NotificationManager
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.location.Location
-import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
@@ -25,12 +20,15 @@ import kotlinx.android.synthetic.main.fragment_map.*
 import kotlinx.android.synthetic.main.fragment_new_tree.*
 import kotlinx.android.synthetic.main.fragment_tree_preview.*
 import org.greenstand.android.TreeTracker.R
-import org.greenstand.android.TreeTracker.application.Permissions
+import org.greenstand.android.TreeTracker.dialogs.showNoGpsDialog
 import org.greenstand.android.TreeTracker.fragments.AboutFragment
 import org.greenstand.android.TreeTracker.fragments.DataFragment
 import org.greenstand.android.TreeTracker.fragments.LoginFragment
 import org.greenstand.android.TreeTracker.fragments.MapsFragment
 import org.greenstand.android.TreeTracker.managers.PermissionsManager
+import org.greenstand.android.TreeTracker.managers.UserLocationManager
+import org.greenstand.android.TreeTracker.managers.UserLocationManager.currentLocation
+import org.greenstand.android.TreeTracker.managers.UserLocationManager.currentTreeLocation
 import org.greenstand.android.TreeTracker.utilities.GpsHelper
 import org.greenstand.android.TreeTracker.utilities.ValueHelper
 import timber.log.Timber
@@ -44,7 +42,17 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
 
     private var fragmentTransaction: FragmentTransaction? = null
 
-    private var locationListener: android.location.LocationListener? = null
+    private var locationListener: android.location.LocationListener = object : android.location.LocationListener {
+        override fun onLocationChanged(location: Location) {
+            this@MainActivity.onLocationChanged(location)
+        }
+
+        override fun onStatusChanged(provider: String, status: Int, extras: Bundle) {}
+
+        override fun onProviderEnabled(provider: String) {}
+
+        override fun onProviderDisabled(provider: String) {}
+    }
 
     /**
      * Called when the activity is first created.
@@ -248,7 +256,7 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
     public override fun onResume() {
         super.onResume()
 
-        if (!PermissionsManager.requestNeededPermissions(this)) {
+        if (PermissionsManager.requestNeededPermissions(this)) {
             startPeriodicUpdates()
         }
     }
@@ -270,10 +278,10 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
                     fragmentMapGpsAccuracyValue?.setTextColor(Color.GREEN)
                     fragmentMapGpsAccuracyValue?.text = Integer.toString(
                         Math.round(currentLocation!!.accuracy)) + " " + resources.getString(R.string.meters)
-                    MainActivity.allowNewTreeOrUpdate = true
+                    UserLocationManager.allowNewTreeOrUpdate = true
                 } else {
                     fragmentMapGpsAccuracy.setTextColor(Color.RED)
-                    MainActivity.allowNewTreeOrUpdate = false
+                    UserLocationManager.allowNewTreeOrUpdate = false
 
                     if (currentLocation!!.hasAccuracy()) {
                         fragmentMapGpsAccuracyValue?.setTextColor(Color.RED)
@@ -295,14 +303,14 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
                 fragmentMapGpsAccuracy.setTextColor(Color.RED)
                 fragmentMapGpsAccuracyValue?.setTextColor(Color.RED)
                 fragmentMapGpsAccuracyValue?.text = "N/A"
-                MainActivity.allowNewTreeOrUpdate = false
+                UserLocationManager.allowNewTreeOrUpdate = false
             }
 
 
-            if (currentTreeLocation != null && MainActivity.currentLocation != null) {
+            if (currentTreeLocation != null && UserLocationManager.currentLocation != null) {
                 val results = floatArrayOf(0f, 0f, 0f)
-                Location.distanceBetween(MainActivity.currentLocation!!.latitude, MainActivity.currentLocation!!.longitude,
-                        MainActivity.currentTreeLocation!!.latitude, MainActivity.currentTreeLocation!!.longitude, results)
+                Location.distanceBetween(UserLocationManager.currentLocation!!.latitude, UserLocationManager.currentLocation!!.longitude,
+                    UserLocationManager.currentTreeLocation!!.latitude, UserLocationManager.currentTreeLocation!!.longitude, results)
 
                 if (fragmentNewTreeDistance != null) {
                     fragmentNewTreeDistance.text = Integer.toString(Math.round(results[0])) + " " + resources.getString(R.string.meters)
@@ -321,10 +329,8 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        if (grantResults.isNotEmpty()) {
-            if (requestCode == Permissions.NECESSARY_PERMISSIONS && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startPeriodicUpdates()
-            }
+        if (PermissionsManager.checkGrantedPermissions(requestCode, grantResults)) {
+            startPeriodicUpdates()
         }
     }
 
@@ -334,52 +340,14 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
      */
     @SuppressLint("MissingPermission")
     private fun startPeriodicUpdates() {
-
-
-        if (!PermissionsManager.requestNeededPermissions(this)) {
+        if (PermissionsManager.requestNeededPermissions(this)) {
             Toast.makeText(this, "GPS Permissions Not Enabled", Toast.LENGTH_LONG).show()
             return
         }
 
         // TODO this check may not longer be necessary
         if (!GpsHelper.isGPSEnabled(this)) {
-            val builder = AlertDialog.Builder(this@MainActivity)
-
-            builder.setTitle(R.string.enable_location_access)
-            builder.setMessage(R.string.you_must_enable_location_access_in_your_settings_in_order_to_continue)
-
-            builder.setPositiveButton(R.string.ok) { dialog, which ->
-                if (Build.VERSION.SDK_INT >= 19) {
-                    //LOCATION_MODE
-                    //Sollution for problem 25 added the ability to pop up location start activity
-                    startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-                } else {
-                    //LOCATION_PROVIDERS_ALLOWED
-
-                    val locationProviders = Settings.Secure.getString(contentResolver,
-                        Settings.Secure.LOCATION_PROVIDERS_ALLOWED)
-                    if (locationProviders == null || locationProviders == "") {
-                        startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-                    }
-                }
-
-
-                dialog.dismiss()
-            }
-
-
-            builder.setNegativeButton(R.string.cancel) { dialog, which ->
-                finish()
-
-                dialog.dismiss()
-            }
-
-
-            val alert = builder.create()
-            alert.setCancelable(false)
-            alert.setCanceledOnTouchOutside(false)
-            alert.show()
-
+            showNoGpsDialog(this)
             return
         }
 
@@ -387,31 +355,16 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
             return
         }
 
-        locationListener = object : android.location.LocationListener {
-            override fun onLocationChanged(location: Location) {
-                this@MainActivity.onLocationChanged(location)
-            }
-
-            override fun onStatusChanged(provider: String, status: Int, extras: Bundle) {}
-
-            override fun onProviderEnabled(provider: String) {}
-
-            override fun onProviderDisabled(provider: String) {}
-        }
-
         // Register the listener with Location Manager's network provider
-        GpsHelper.requestLocationUpdates(this, locationListener!!)
-
+        GpsHelper.requestLocationUpdates(this, locationListener)
     }
-
 
     /**
      * In response to a request to stop updates, send a request to
      * Location Services
      */
     private fun stopPeriodicUpdates() {
-        GpsHelper.removeLocationUpdates(this, locationListener!!)
-        locationListener = null
+        GpsHelper.removeLocationUpdates(this, locationListener)
     }
 
     private fun updatePreferences() {
@@ -425,16 +378,5 @@ class MainActivity : AppCompatActivity(), ActivityCompat.OnRequestPermissionsRes
     override fun refreshMap() {
         startPeriodicUpdates()
     }
-
-    // TODO: implementing this as a static companion object is not necessarily a good design
-    companion object {
-
-        var currentLocation: Location? = null
-        var currentTreeLocation: Location? = null
-
-        var allowNewTreeOrUpdate = false
-
-    }
-
 }
 

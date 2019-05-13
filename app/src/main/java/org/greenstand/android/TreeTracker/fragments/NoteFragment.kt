@@ -30,12 +30,12 @@ import kotlinx.android.synthetic.main.fragment_note.*
 import kotlinx.android.synthetic.main.fragment_note.view.*
 import org.greenstand.android.TreeTracker.R
 import org.greenstand.android.TreeTracker.activities.CameraActivity
-import org.greenstand.android.TreeTracker.activities.MainActivity
 import org.greenstand.android.TreeTracker.application.Permissions
 import org.greenstand.android.TreeTracker.application.TreeTrackerApplication
 import org.greenstand.android.TreeTracker.database.entity.LocationEntity
 import org.greenstand.android.TreeTracker.database.entity.NoteEntity
 import org.greenstand.android.TreeTracker.database.entity.TreeNoteEntity
+import org.greenstand.android.TreeTracker.managers.UserLocationManager
 import org.greenstand.android.TreeTracker.utilities.Utils
 import org.greenstand.android.TreeTracker.utilities.Utils.Companion.dateFormat
 import org.greenstand.android.TreeTracker.utilities.ValueHelper
@@ -150,9 +150,9 @@ class NoteFragment : Fragment(), OnClickListener, OnCheckedChangeListener,
             val lat = it.latitude
             val lon = it.longitude
 
-            MainActivity.currentTreeLocation = Location("") // Empty location
-            MainActivity.currentTreeLocation!!.latitude = lat
-            MainActivity.currentTreeLocation!!.longitude = lon
+            UserLocationManager.currentTreeLocation = Location("") // Empty location
+            UserLocationManager.currentTreeLocation!!.latitude = lat
+            UserLocationManager.currentTreeLocation!!.longitude = lon
         }
 
         return v
@@ -294,9 +294,9 @@ class NoteFragment : Fragment(), OnClickListener, OnCheckedChangeListener,
 
         // location
         val location = LocationEntity(
-            MainActivity.currentLocation!!.accuracy.toInt(),
-            MainActivity.currentLocation!!.latitude,
-            MainActivity.currentLocation!!.longitude,
+            UserLocationManager.currentLocation!!.accuracy.toInt(),
+            UserLocationManager.currentLocation!!.latitude,
+            UserLocationManager.currentLocation!!.longitude,
             userId
         )
 

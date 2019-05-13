@@ -12,6 +12,15 @@ import org.greenstand.android.TreeTracker.application.Permissions
  */
 object PermissionsManager {
 
+    fun checkGrantedPermissions(requestCode: Int, grantResults: IntArray): Boolean {
+        if (grantResults.isNotEmpty()) {
+            if (requestCode == Permissions.NECESSARY_PERMISSIONS && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                return true
+            }
+        }
+        return false
+    }
+
     fun requestNeededPermissions(activity: Activity): Boolean {
         if (requiresPermissions(activity)) {
             requestNecessaryPermissions(activity)

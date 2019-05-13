@@ -1,6 +1,5 @@
 package org.greenstand.android.TreeTracker.managers
 
-import org.greenstand.android.TreeTracker.activities.MainActivity
 import org.greenstand.android.TreeTracker.application.TreeTrackerApplication
 import org.greenstand.android.TreeTracker.database.entity.*
 import timber.log.Timber
@@ -96,9 +95,9 @@ object TreeManager {
 
     fun insertLocation(userId: Long): Long {
         val locationEntity = LocationEntity(
-            MainActivity.currentLocation!!.accuracy.toInt(),
-            MainActivity.currentLocation!!.latitude,
-            MainActivity.currentLocation!!.longitude,
+            UserLocationManager.currentLocation!!.accuracy.toInt(),
+            UserLocationManager.currentLocation!!.latitude,
+            UserLocationManager.currentLocation!!.longitude,
             userId
         )
 

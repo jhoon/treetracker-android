@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.greenstand.android.TreeTracker.BuildConfig
 import org.greenstand.android.TreeTracker.R
-import org.greenstand.android.TreeTracker.activities.MainActivity
 import org.greenstand.android.TreeTracker.application.Permissions
 import org.greenstand.android.TreeTracker.application.TreeTrackerApplication
 import org.greenstand.android.TreeTracker.database.entity.LocationEntity
@@ -40,6 +39,7 @@ import org.greenstand.android.TreeTracker.database.entity.PhotoEntity
 import org.greenstand.android.TreeTracker.database.entity.TreeEntity
 import org.greenstand.android.TreeTracker.database.entity.TreePhotoEntity
 import org.greenstand.android.TreeTracker.managers.FeatureFlags
+import org.greenstand.android.TreeTracker.managers.UserLocationManager
 import org.greenstand.android.TreeTracker.utilities.ImageUtils
 import org.greenstand.android.TreeTracker.utilities.Utils
 import org.greenstand.android.TreeTracker.utilities.ValueHelper
@@ -208,28 +208,27 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
         )
 
         if (fragmentMapGpsAccuracy != null) {
-            if (MainActivity.currentLocation != null) {
-                if (MainActivity.currentLocation!!.hasAccuracy() && MainActivity.currentLocation!!.accuracy < minAccuracy) {
+            if (UserLocationManager.currentLocation != null) {
+                if (UserLocationManager.currentLocation!!.hasAccuracy() && UserLocationManager.currentLocation!!.accuracy < minAccuracy) {
                     fragmentMapGpsAccuracy.setTextColor(Color.GREEN)
                     fragmentMapGpsAccuracyValue.setTextColor(Color.GREEN)
                     val fragmentMapGpsAccuracyValueString1 = Integer.toString(
                         Math.round(
-                            MainActivity
+                            UserLocationManager
                                 .currentLocation!!.accuracy
                         )
                     ) + " " + resources.getString(R.string.meters)
                     fragmentMapGpsAccuracyValue.text = fragmentMapGpsAccuracyValueString1
-                    MainActivity.allowNewTreeOrUpdate = true
+                    UserLocationManager.allowNewTreeOrUpdate = true
                 } else {
                     fragmentMapGpsAccuracy.setTextColor(Color.RED)
-                    MainActivity.allowNewTreeOrUpdate = false
+                    UserLocationManager.allowNewTreeOrUpdate = false
 
-                    if (MainActivity.currentLocation!!.hasAccuracy()) {
+                    if (UserLocationManager.currentLocation!!.hasAccuracy()) {
                         fragmentMapGpsAccuracyValue.setTextColor(Color.RED)
                         val fragmentMapGpsAccuracyValueString2 = Integer.toString(
                             Math.round(
-                                MainActivity
-                                    .currentLocation!!.accuracy
+                                UserLocationManager.currentLocation!!.accuracy
                             )
                         ) + " " + resources.getString(R.string.meters)
                         fragmentMapGpsAccuracyValue.text = fragmentMapGpsAccuracyValueString2
@@ -253,7 +252,7 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
                 fragmentMapGpsAccuracy.setTextColor(Color.RED)
                 fragmentMapGpsAccuracyValue.setTextColor(Color.RED)
                 fragmentMapGpsAccuracyValue.text = "N/A"
-                MainActivity.allowNewTreeOrUpdate = false
+                UserLocationManager.allowNewTreeOrUpdate = false
             }
 
         }
@@ -275,7 +274,7 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
             R.id.addTreeButton -> {
                 Timber.d("fab click")
 
-                if (MainActivity.allowNewTreeOrUpdate || !FeatureFlags.HIGH_GPS_ACCURACY) {
+                if (UserLocationManager.allowNewTreeOrUpdate || !FeatureFlags.HIGH_GPS_ACCURACY) {
 
                     val currentTimestamp = System.currentTimeMillis() / 1000
                     val lastTimeStamp = mSharedPreferences!!.getLong(ValueHelper.TIME_OF_LAST_USER_IDENTIFICATION, 0)
@@ -359,9 +358,9 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
             for (i in 0..499) {
 
                 val location = LocationEntity(
-                    MainActivity.currentLocation!!.accuracy.toInt(),
-                    MainActivity.currentLocation!!.latitude + (Math.random() - .5) / 1000,
-                    MainActivity.currentLocation!!.longitude + (Math.random() - .5) / 1000,
+                    UserLocationManager.currentLocation!!.accuracy.toInt(),
+                    UserLocationManager.currentLocation!!.latitude + (Math.random() - .5) / 1000,
+                    UserLocationManager.currentLocation!!.longitude + (Math.random() - .5) / 1000,
                     userId.toLong()
                 )
 
@@ -480,9 +479,9 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
                 map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 20f))
 
             } else {
-                if (MainActivity.currentLocation != null) {
+                if (UserLocationManager.currentLocation != null) {
                     val myLatLng =
-                        LatLng(MainActivity.currentLocation!!.latitude, MainActivity.currentLocation!!.longitude)
+                        LatLng(UserLocationManager.currentLocation!!.latitude, UserLocationManager.currentLocation!!.longitude)
                     map.moveCamera(CameraUpdateFactory.newLatLngZoom(myLatLng, 10f))
                 }
             }
@@ -492,11 +491,5 @@ class MapsFragment : androidx.fragment.app.Fragment(), OnClickListener, OnMarker
         map.setOnMarkerClickListener(this@MapsFragment)
 
         map.mapType = GoogleMap.MAP_TYPE_NORMAL
-    }
-
-    companion object {
-        private val TAG = "MapsFragment"
-        @SuppressLint("StaticFieldLeak")
-        private var view: View? = null
     }
 }
